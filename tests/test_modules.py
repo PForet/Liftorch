@@ -70,11 +70,11 @@ def test_handling():
     with pytest.raises(ValueError):
         m = m1()
         m._compute_activations_shapes()
-        m._initialize_activations()
+        m.initialize_activations()
     m = m1()
     m._compute_activations_shapes()
-    m._set_batch_size(10)
-    m._initialize_activations()  
+    m.set_batch_size(10)
+    m.initialize_activations()  
 
 
 def test_X_optim():
@@ -97,8 +97,8 @@ def test_X_optim():
             the ones obtained with the forward pass.
             """
             self._compute_activations_shapes()
-            self._set_batch_size(2)
-            self._initialize_activations()
+            self.set_batch_size(2)
+            self.initialize_activations()
 
             with torch.no_grad():
                 self._activations['layer2'] = torch.tensor(self.forward_activations[1])
@@ -107,7 +107,7 @@ def test_X_optim():
             curloss, tol = np.inf, 10e-6
             while True:
                 optimizer.zero_grad()
-                loss, (xmin, xmax) = self._get_X_loss('layer1', inputs = inputs)
+                loss, (xmin, xmax) = self.get_X_loss('layer1', inputs = inputs)
                 loss.backward()
                 optimizer.step()
                 if xmin is not None or xmax is not None:
@@ -128,8 +128,8 @@ def test_X_optim():
             We have to make sure that we optimize only on the second activation.
             """
             self._compute_activations_shapes()
-            self._set_batch_size(2)
-            self._initialize_activations()
+            self.set_batch_size(2)
+            self.initialize_activations()
             optimizer = torch.optim.Adam(self.X_parameters('layer2'), lr=0.0005)
 
             with torch.no_grad():
@@ -139,7 +139,7 @@ def test_X_optim():
             curloss, tol = np.inf, 10e-8
             while True:
                 optimizer.zero_grad()
-                loss, (xmin, xmax) = self._get_X_loss('layer2', inputs = inputs)
+                loss, (xmin, xmax) = self.get_X_loss('layer2', inputs = inputs)
                 loss.backward()
                 optimizer.step()
                 if xmin is not None or xmax is not None:
@@ -186,3 +186,71 @@ def test_X_optim():
     m = model1()
     m.forward(inputs)
     m.test_second_layer()
+
+def test_loss():
+    """
+    Test if all types of loss are accessible, and check the domains. Does not
+    check the loss values.
+    """
+    class model(LiftedModule):
+        def __init__(self):
+            super(model, self).__init__()
+            self.layer1 = nn.Linear(3,10)
+            self.layer2 = nn.Linear(10,6)
+            self.layer3 = nn.Linear(6,4)
+            self.layer4 = nn.Linear(4,2)
+            self.set_graph({
+                'layer1':'relu',
+                'layer2':'tanh',
+                'layer3':'sigmoid',
+                'layer4':'id'
+            })
+
+    m = model()
+    inputs = torch.tensor([[.34, -0.48, 0.98], [-0.32, .74, .23]])
+    y = torch.tensor([1,0])
+
+    # Should fail if no batch size was provided:
+    with pytest.raises(AttributeError):
+        m.get_X_loss('layer1', inputs)
+    with pytest.raises(AttributeError):
+        m.get_W_loss('layer1', inputs)
+    with pytest.raises(AttributeError):
+        m.get_lifted_loss('layer1', inputs, y)
+
+    # Now should work
+    m.set_batch_size(2)
+    m.initialize_activations()
+    
+    assert not np.isinf(m.get_W_loss('layer2').item())
+    assert not np.isinf(m.get_W_loss('layer3').item())
+    assert not np.isinf(m.get_W_loss('layer4').item())
+
+    # Explicitely ask for inputs if first layer:
+    with pytest.raises(ValueError):
+        m.get_W_loss('layer1').item()
+    assert not np.isinf(m.get_W_loss('layer1', inputs).item())
+
+    assert not np.isinf(m.get_X_loss('layer2')[0].item())
+    assert not np.isinf(m.get_X_loss('layer3')[0].item())
+
+    # Explicitely ask for inputs if first layer:
+    with pytest.raises(ValueError):
+        m.get_X_loss('layer1').item()
+    assert not np.isinf(m.get_X_loss('layer1', inputs)[0].item())
+
+    # Explicitely ask for labels if last layer:
+    with pytest.raises(ValueError):
+        m.get_X_loss('layer4')[0].item()
+    assert not np.isinf(m.get_X_loss('layer4', y=y)[0].item())
+
+    # Check domain
+    _, dom = m.get_X_loss('layer1', inputs)
+    assert dom[0] == 0 and dom[1] is None # For Relu
+
+    loss, domain = m.get_lifted_loss(inputs, y, lambd = 1.)
+    assert not np.isinf(loss.item())
+    assert domain['layer1'][0] == 0
+    assert domain['layer1'][1] is None
+    assert domain['layer4'][0] is None
+
