@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from itertools import chain
 
 import torch
 from torch.nn import Module
@@ -44,7 +45,24 @@ class LiftedModule(Module):
                 yield value
         else:
             yield self._activations[layer]
-    
+
+    def all_parameters(self):
+        """
+        Return an iterator that yields the layers parameters and activation tensors
+        """
+        return chain(self.parameters(), self.X_parameters())
+
+    def project_activations(self, domains):
+        """
+        Project each X tensor on its domain. Doesn't keep track of gradients when doing so.
+        Args:
+            domains: A dictionnary containing the name and the domain of each activation tensor
+        """
+        with torch.no_grad():
+            for name, (x_inf, x_sup) in domains.items():
+                if x_inf is not None and x_sup is not None:
+                    self._activations[name].clamp_(min=x_inf, max=x_sup)
+
     def set_batch_size(self, batch_size):
         """
         Replace the first dimention of the X_l tensors with the current batch size
