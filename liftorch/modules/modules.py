@@ -36,12 +36,16 @@ class LiftedModule(Module):
         """
         return list(self._modules.keys())
 
-    def X_parameters(self):
+    def X_parameters(self, layer=None):
         """
-        Return an iterator that yields the activation tensors (X_l)
+        Return an iterator that yields the activation tensors (X_l). If 'layer' is given,
+        return only the activation after this layer.
         """
-        for name, value in self._activations.items():
-            yield value
+        if layer is None:
+            for name, value in self._activations.items():
+                yield value
+        else:
+            yield self._activations[layer]
     
     def _set_batch_size(self, batch_size):
         """
@@ -54,8 +58,11 @@ class LiftedModule(Module):
         """
         Create X_l tensors. Initialize all values to zero. Name conventions are as follows:
         tensor named 'layer_i' will be the output of layer_i, AFTER composition with the 
-        activation function
+        activation function.
         """
+        if any((v[0] == -1 for e,v in self._activations_shape.items())):
+            raise ValueError('No batch size has been defined. Call _set_batch_size()')
+
         self._activations = OrderedDict()
         for name, shape in self._activations_shape.items():
             tens = torch.empty( * shape, requires_grad = True)
@@ -322,4 +329,8 @@ class LiftedModule(Module):
         for _ in range(n_epoch):
             self._X_step(X, y)
             self._W_step(X)
-         
+
+
+
+
+
