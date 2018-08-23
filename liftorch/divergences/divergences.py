@@ -1,4 +1,5 @@
 import torch 
+import numpy
 from torch import log1p, log
 
 def divergence(fn_name, Z, X):
@@ -10,15 +11,18 @@ def divergence(fn_name, Z, X):
     We may have to write specialized CUDA kernels for that.
     """
     if fn_name == 'relu':
-        return relu_div(Z,X)
+        loss, domain = relu_div(Z,X)
     elif fn_name == 'id': 
-        return id_div(Z,X)
+        loss, domain = id_div(Z,X)
     elif fn_name == 'sigmoid':
-        return sigmoid_div(Z,X)
+        loss, domain = sigmoid_div(Z,X)
     elif fn_name == 'tanh':
-        return tanh_div(Z,X)
+        loss, domain = tanh_div(Z,X)
     else:
         raise ValueError('Divergence not implemented for {}.'.format(fn_name))
+    if numpy.isinf(loss.item()):
+        raise ValueError('Obtained inf loss for divergence {} and tensors {} and  {}'.format(fn_name, Z, X))
+    return loss, domain
 
 def relu_div(Z,X):
     """
