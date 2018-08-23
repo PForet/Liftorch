@@ -1,5 +1,6 @@
 import pytest 
-from liftorch.shapes import get_output_shape
+from torch.nn import Linear, Conv3d
+from liftorch.utils.shapes import get_output_shape
 
 def test():
     """
