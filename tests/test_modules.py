@@ -1,5 +1,9 @@
 import pytest
+import torch
+import numpy as np
+from numpy.testing import assert_allclose
 from torch import nn
+from torch.nn import functional as F
 from liftorch.modules import LiftedModule
 
 def test_graph():
@@ -52,3 +56,133 @@ def test_graph():
         m = model2()
     with pytest.raises(ValueError):
         m = model3()
+
+def test_handling():
+    """
+    various error handling
+    """
+    # Initialization of activations without _set_batch_size should explicitely fail
+    class m1(LiftedModule):
+        def __init__(self):
+            super(m1, self).__init__()
+            self.layer1 = nn.Linear(1,1)
+            self.set_graph({'layer1':'id'})
+    with pytest.raises(ValueError):
+        m = m1()
+        m._compute_activations_shapes()
+        m._initialize_activations()
+    m = m1()
+    m._compute_activations_shapes()
+    m._set_batch_size(10)
+    m._initialize_activations()  
+
+
+def test_X_optim():
+    """
+    Make sure that minimizing the X loss of a layer gives the same activation as
+    a standard feed forward pass.
+    NB: There is a known bug where mixing the activation functions leads to a non-convergence on
+    some elements, and a good convergence on others. In any case, the convergence
+    is very approximative. We might need a better opt algo
+    """
+    torch.manual_seed(0)
+
+    class model(LiftedModule):
+        def __init__(self):
+            super(model, self).__init__()
+
+        def test_first_layer(self, inputs):
+            """ 
+            Check if the activation of the first hidden layer after a Z optim matches 
+            the ones obtained with the forward pass.
+            """
+            self._compute_activations_shapes()
+            self._set_batch_size(2)
+            self._initialize_activations()
+
+            with torch.no_grad():
+                self._activations['layer2'] = torch.tensor(self.forward_activations[1])
+
+            optimizer = torch.optim.Adam(self.X_parameters('layer1'), lr=0.0005)
+            curloss, tol = np.inf, 10e-6
+            while True:
+                optimizer.zero_grad()
+                loss, (xmin, xmax) = self._get_X_loss('layer1', inputs = inputs)
+                loss.backward()
+                optimizer.step()
+                if xmin is not None or xmax is not None:
+                    with torch.no_grad():
+                        self._activations['layer1'].clamp_(min=xmin, max=xmax)
+                if loss.item() > curloss - tol:
+                    break
+                curloss = loss.item()
+            assert_allclose(
+                self._activations['layer1'].detach(), 
+                self.forward_activations[0].detach(), atol=10e-2)
+
+        def test_second_layer(self):
+            """ 
+            Check if the activation of a hidden (not first) layer after a Z optim matches 
+            the ones obtained with the forward pass. We must set the activations of the first and 
+            last layer to the forward activation to get the expected result.
+            We have to make sure that we optimize only on the second activation.
+            """
+            self._compute_activations_shapes()
+            self._set_batch_size(2)
+            self._initialize_activations()
+            optimizer = torch.optim.Adam(self.X_parameters('layer2'), lr=0.0005)
+
+            with torch.no_grad():
+                self._activations['layer1'] = torch.tensor(self.forward_activations[0])
+                self._activations['layer3'] = torch.tensor(self.forward_activations[2])
+
+            curloss, tol = np.inf, 10e-8
+            while True:
+                optimizer.zero_grad()
+                loss, (xmin, xmax) = self._get_X_loss('layer2', inputs = inputs)
+                loss.backward()
+                optimizer.step()
+                if xmin is not None or xmax is not None:
+                    with torch.no_grad():
+                        self._activations['layer2'].clamp_(min=xmin, max=xmax)
+                if loss.item() > curloss - tol:
+                    break
+                curloss = loss.item()
+            assert_allclose(
+                self._activations['layer2'].detach(), 
+                self.forward_activations[1].detach(), atol=10e-2)
+    
+    class model1(model):
+        def __init__(self):
+            super(model1, self).__init__()
+            self.layer1 = nn.Linear(3,5)
+            self.layer2 = nn.Linear(5,4)
+            self.layer3 = nn.Linear(4,3)
+            self.set_graph({
+                'layer1':'relu',
+                'layer2':'relu',
+                'layer3':'id'
+            })
+
+        def forward(self, x):
+            """
+            Standard forward pass. Keep in memory the activations obtained
+            """
+            self.forward_activations = []
+            x = F.relu(self.layer1(x))
+            self.forward_activations.append(x)
+            x = F.relu(self.layer2(x))
+            self.forward_activations.append(x)
+            x = self.layer3(x)
+            self.forward_activations.append(x)
+        
+    inputs = torch.tensor([[.34, -0.48, 0.98], [-0.32, .74, .23]])
+
+     # Test for a relu-relu network
+    m = model1()
+    m.forward(inputs)
+    m.test_first_layer(inputs)
+
+    m = model1()
+    m.forward(inputs)
+    m.test_second_layer()
