@@ -1,0 +1,71 @@
+import pytest
+import numpy as np 
+from torch import optim
+from torch.nn import functional as F
+from numpy.testing import assert_allclose
+
+from liftorch.divergences import divergence
+
+def argmin(X, fn, variable = None):
+    """
+    Return argmin_{Z} fn(Z, X). Only used for testing
+    """
+    if variable is None:
+        variable = torch.zeros(X.shape, requires_grad=True)
+        torch.nn.init.normal_(variable)
+    optimizer = optim.SGD([variable], lr=0.1)
+    tol = 10e-9
+    loss = np.inf
+    while True:
+        optimizer.zero_grad()
+        a = 1
+        div, (x_min, x_max) = fn(variable, X)
+        div.backward()
+        optimizer.step()
+        with torch.no_grad():
+            if x_min is not None or x_max is not None:
+                variable.clamp_(min=x_min, max=x_max)
+
+        if div.item() > loss - tol:
+            return variable
+        loss = div.item()
+
+def test_id():
+    """
+    test if id(X) == argmin_{Z} id_div(Z)
+    """
+    some_tensor = torch.tensor([[-1., 1., -1.], [2., -3., 4.]], requires_grad=True)
+    Z = argmin(some_tensor, lambda x,z: divergence('id', x, z))
+    assert_allclose(Z.detach().numpy(), some_tensor.detach().numpy(), atol=10e-4)
+
+def test_relu():
+    """
+    test if relu(X) == argmin_{Z>0} relu_div(Z)
+    """
+    some_tensor = torch.tensor([[-1., -1., 1.], [2., -3., 4.]], requires_grad=True)
+    Z_0 = torch.empty(some_tensor.shape, requires_grad=True)
+    torch.nn.init.constant_(Z_0, 0.5)
+    Z = argmin(some_tensor, lambda x,z: divergence('relu', x, z), Z_0)
+    assert_allclose(Z.detach().numpy(), F.relu(some_tensor).detach().numpy(), atol=10e-4)
+
+def test_sigmoid():
+    """
+    test if sigmoid(X) == argmin_{0<Z<1} sigmoid_div(Z)
+    """
+    some_tensor = torch.empty(3, 4, requires_grad=True)
+    torch.nn.init.normal_(some_tensor)
+    Z_0 = torch.empty(some_tensor.shape, requires_grad=True)
+    torch.nn.init.constant_(Z_0, 0.5)
+    Z = argmin(some_tensor, lambda x,z: divergence('sigmoid', x, z), Z_0)
+    assert_allclose(Z.detach().numpy(), F.sigmoid(some_tensor).detach().numpy(), atol=10e-4)
+
+def test_tanh():
+    """
+    test if tanh(X) == argmin_{-1<Z<1} arctahn_div(Z)
+    """
+    some_tensor = torch.empty(3, 4, requires_grad=True)
+    torch.nn.init.normal_(some_tensor)
+    Z_0 = torch.empty(some_tensor.shape, requires_grad=True)
+    torch.nn.init.constant_(Z_0, 0)
+    Z = argmin(some_tensor, lambda x,z: divergence('tanh', x, z), Z_0)
+    assert_allclose(Z.detach().numpy(), F.tanh(some_tensor).detach().numpy(), atol=10e-4)
