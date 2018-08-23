@@ -5,8 +5,8 @@ from torch.nn import Module
 from torch import optim
 from torch import nn
 import numpy as np 
-from output_shapes import get_output_shape
-from divergence import divergence
+from ..utils.shapes import get_output_shape
+from ..divergences import divergence
 
 class LiftedModule(Module):
     def __init__(self, **kwargs):

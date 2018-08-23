@@ -15,6 +15,8 @@ def divergence(fn_name, Z, X):
         return id_div(Z,X)
     elif fn_name == 'sigmoid':
         return sigmoid_div(Z,X)
+    elif fn_name == 'tanh':
+        return tanh_div(Z,X)
     else:
         raise ValueError('Divergence not implemented for {}.'.format(fn_name))
 
