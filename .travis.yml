@@ -1,0 +1,21 @@
+sudo: required
+language: python
+python:
+  - 2.7
+  - 3.4
+  
+before_install:
+    - pip install pytest pytest-cov
+    - pip install matplotlib
+    - pip install coveralls
+
+install:
+  - python setup.py install
+
+script: py.test --cov
+
+after_success:
+    - coveralls
+
+notifications:
+  email: false
