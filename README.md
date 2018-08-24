@@ -4,18 +4,11 @@
 
 Liftorch is a Pytorch extension that allows the user to optimize neural networks based on the relaxed formulation proposed by [El Ghaoui et Al](https://arxiv.org/abs/1805.01532). In this framework, we replace the classical optimization problem of training a neural network:
 
-$$\min_{(W_l,b_l)_0^l, (X_l)_1^L} L(Y, X_{L+1}) + \sum_{l=0}^L \pi_l(W_l) \\
-s.c. \\
-X_{l+1} = \phi_l(W_lX_l + b_l1_m^T)\, , \, l \in [0,...,L] \\
-X_0 = X
-$$
+![](https://latex.codecogs.com/png.latex?$$\min_{(W_l,b_l)_0^l,&space;(X_l)_1^L}&space;L(Y,&space;X_{L&plus;1})&space;&plus;&space;\sum_{l=0}^L&space;\pi_l(W_l)&space;\\&space;s.c.&space;\\&space;X_{l&plus;1}&space;=&space;\phi_l(W_lX_l&space;&plus;&space;b_l1_m^T)\,&space;,&space;\,&space;l&space;\in&space;[0,...,L]&space;\\&space;X_0&space;=&space;X&space;$$)
 
 By its relaxed formulation:
 
-$$\min_{(W_l,b_l)_0^l , (X_l)_1^L} L(Y, X_{L+1}) + \sum_{l=0}^L \pi_l(W_l) + \sum_{l=0}^L \lambda_{l+1} D_l(W_lX_l+ b_l1_l^T, X_{l+1}) \\
-s.c. \\
-X_l \in Dom_l \, , \, l \in [1, ..., L-1] \\
-X_0 = X$$
+![](https://latex.codecogs.com/png.latex?\fn_phv&space;\begin{array}{c}&space;$$\min_{(W_l,b_l)_0^l&space;,&space;(X_l)_1^L}&space;L(Y,&space;X_{L&plus;1})&space;&plus;&space;\sum_{l=0}^L&space;\pi_l(W_l)&space;&plus;&space;\sum_{l=0}^L&space;\lambda_{l&plus;1}&space;D_l(W_lX_l&plus;&space;b_l1_l^T,&space;X_{l&plus;1})&space;\\&space;s.c.&space;\\&space;X_l&space;\in&space;Dom_l&space;\,&space;,&space;\,&space;l&space;\in&space;[1,&space;...,&space;L-1]&space;\\&space;X_0&space;=&space;X$$&space;\end{array})
 
 Where $L$ stands for the loss function, $\pi_l$ are penalties imposed on the weights, $\phi_l$ are the activation functions and $D_l$ their associated divergence on the feasible set $Dom_l$. 
 The divergences are convex functions such as 
