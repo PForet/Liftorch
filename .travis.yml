@@ -6,7 +6,8 @@ python:
   
 before_install:
     - pip install pytest pytest-cov
-    - pip install matplotlib
+    - pip install pytorch
+    - pip install numpy
     - pip install coveralls
 
 install:
