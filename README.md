@@ -20,12 +20,12 @@ By its relaxed formulation:
 
 ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;X_0&space;=&space;X)
 
-Where L stands for the loss function, pi_l are penalties imposed on the weights, phi_l are the activation functions and D_l their associated divergence on the feasible set Dom_l. 
+Where ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;L) stands for the loss function, ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;\pi_l) are penalties imposed on the weights, ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;\phi_l) are the activation functions and ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;D_l) their associated divergence on the feasible set ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;Dom_l) . 
 The divergences are convex functions such as 
 
 ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;\phi_l(X)&space;=&space;arg\min_{Z&space;\in&space;Dom_l}&space;D_l(X,&space;Z))
 
-Thus, when $D_l$ is minimum, we have ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;X_{l&plus;1}&space;=&space;\phi_l(W_lX_l&space;&plus;&space;b_l1_m^T)) which is the contraint imposed on the classical optimization problem.
+Thus, when ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;D_l) is minimum, we have ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;X_{l&plus;1}&space;=&space;\phi_l(W_lX_l&space;&plus;&space;b_l1_m^T)) which is the contraint imposed on the classical optimization problem.
 
 This _lifted_ formulation has been shown to provide excellent initial values for the initialization of the layers weights. For this reason, *Liftorch* aims at providing an easy way to solve this optimization problem for feedforward neural networks implemented in *Pytorch*.
 
@@ -117,19 +117,19 @@ Once this problem solved, we can return to the code above to fine-tune the optim
 
 ## Other optimization methods:
 
-As suggested in the original paper, one may wish to update X_l and W_l in a block-coordinate fashion, to take advantage of the fact that the relaxed problem is convex and can be parallelised in W_l.  `Liftorch` propose some methods to obtain only the loss related to certain parameters:
+As suggested in the original paper, one may wish to update ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;X_l) and ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;W_l) in a block-coordinate fashion, to take advantage of the fact that the relaxed problem is convex and can be parallelised in ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;W_l).  `Liftorch` propose some methods to obtain only the loss related to certain parameters:
 
-### Optimizing on the layer parameters (W_l)
-`my_model.get_W_loss(layer = 'layer_i', inputs=X)` will return the loss related to the parameters W_i of the layer named 'layer_i', that is to say, using the previous notations:
+### Optimizing on the layer parameters (![](https://latex.codecogs.com/svg.latex?\fn_phv&space;W_l))
+`my_model.get_W_loss(layer = 'layer_i', inputs=X)` will return the loss related to the parameters ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;W_i) of the layer named 'layer_i', that is to say, using the previous notations:
 
 ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;D_i(W_{i}X_{i}&plus;b_i1^T,&space;X_{i&plus;1}))
 
 Please note that `inputs` is only needed for computing the loss related to the first layer. 
 To optimize only on a certain layer, we can pass to our optimizer the following generator: `optimizer = optim.Adam(my_model.W_parameters('layer_i'), lr=0.01)`. To optimize on all the layers, the usual `optimizer = optim.Adam(my_model.parameters(), lr=0.01)` works.
 
-### Optimizing on the activations ($X_l$)
+### Optimizing on the activations (![](https://latex.codecogs.com/svg.latex?\fn_phv&space;X_l))
 
-In this case, `my_model.get_X_loss(layer = 'layer_i', inputs=X, y=y)` will return the loss related to the parameters X_i (which is, in the usual forward pass, the tensor obtained after composition by 'layer_i' and its activation function). In the case of an hidden layer, this loss is:
+In this case, `my_model.get_X_loss(layer = 'layer_i', inputs=X, y=y)` will return the loss related to the parameters ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;X_i) (which is, in the usual forward pass, the tensor obtained after composition by 'layer_i' and its activation function). In the case of an hidden layer, this loss is:
 
 ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;\lambda&space;\times&space;\left(D_{i-1}(X_i,\,&space;W_{i-1}X_{i-1}&space;&plus;&space;b_{i-1}1^T)&space;&plus;&space;D_{i}(W_iX_i&space;&plus;&space;b_i1^T,\,&space;X_{i&plus;1})\right))
 
@@ -138,7 +138,7 @@ For the last layer, this loss becomes:
 ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;\lambda&space;D_{L-1}(X_L,\,&space;W_{L-1}X_{L-1}&space;&plus;&space;b_{L-1}1^T)&space;&plus;&space;L(W_LX_L&space;&plus;&space;b_L1^T,&space;y))
 
 Please note that for this method, `inputs` is only needed for the first layer, and `y` is only needed for the last.
-To optimize only on X_i, we can pass to our optimizer the generator `my_model.X_parameters('layer_i')`. To optimize on all the X_i, i=1...L, we can use `my_model.X_parameters()` (same method, without argument).
+To optimize only on ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;X_i), we can pass to our optimizer the generator `my_model.X_parameters('layer_i')`. To optimize on all the ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;X_i,&space;i&space;\in&space;[1,...,L]), we can use `my_model.X_parameters()` (same method, without argument).
 
 ## Activation functions:
 
@@ -153,6 +153,6 @@ Are currently supported the following activation functions (everything must be u
 
 ## Development
 
-This package is in its early development stage. Only feedforward networks with Linear layers are supported. Convolutional layers should come soon. Better algorithms for box-constraint optimization should be implemented, as the projected gradient method seems to have some limits. Heuristics to find $\lambda$ and methods to make the optimization simpler might come. 
+This package is in its early development stage. Only feedforward networks with Linear layers are supported. Convolutional layers should come soon. Better algorithms for box-constraint optimization should be implemented, as the projected gradient method seems to have some limits. Heuristics to find ![](https://latex.codecogs.com/svg.latex?\fn_phv&space;\lambda) and methods to make the optimization simpler might come. 
 
 Every contribution is welcomed. For any question or suggestion, don't hesitate to open an issue or email me at Pierre_foret@berkeley.edu 
