@@ -1,17 +1,17 @@
 sudo: required
 language: python
 python:
-  - 2.7
   - 3.4
   
 before_install:
     - pip install pytest pytest-cov
-    - pip install pytorch
     - pip install numpy
     - pip install coveralls
 
 install:
+  - pip3 install http://download.pytorch.org/whl/cpu/torch-0.4.1-cp36-cp36m-linux_x86_64.whl 
   - python setup.py install
+
 
 script: py.test --cov
 
