@@ -46,6 +46,12 @@ class LiftedModule(Module):
         else:
             yield self._activations[layer]
 
+    def W_parameters(self, layer):
+        """
+        Return an iterator that yields the weight of a unique layer
+        """
+        return self._modules[layer].parameters()
+
     def all_parameters(self):
         """
         Return an iterator that yields the layers parameters and activation tensors
@@ -60,7 +66,7 @@ class LiftedModule(Module):
         """
         with torch.no_grad():
             for name, (x_inf, x_sup) in domains.items():
-                if x_inf is not None and x_sup is not None:
+                if x_inf is not None or x_sup is not None:
                     self._activations[name].clamp_(min=x_inf, max=x_sup)
 
     def set_batch_size(self, batch_size):
