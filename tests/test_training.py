@@ -1,8 +1,9 @@
-from liftorch.modules import LiftedModule
+from liftorch.modules import LiftedModule, TLModule
 
 import numpy as np 
 from sklearn.metrics import accuracy_score
 from torch import nn 
+from torch.nn import functional as F
 from torch import optim
 import torch
 
@@ -29,7 +30,7 @@ class LinearlySeparable(_generator):
     def get_label(self, x):
         return int(x[0] > 0)
 
-def test_training_whole():
+def test_trainingWholeLoss():
     """
     Optimize the whole loss of the network to check that it trains well.
     """
@@ -75,7 +76,7 @@ def test_training_whole():
     acc = accuracy_score(y, pred)
     assert acc > .99
 
-def test_training_block_coord():
+def test_trainingBlockCoordinate():
     """
     Optimize the loss of the network in a block coordinate fashion, to check that it trains well.
     """
@@ -145,4 +146,67 @@ def test_training_block_coord():
     current_loss = np.inf 
 
     acc = mymodel.block_training(X,y,0.001)
-    assert acc > .98 # higher could work with a better learnin rate, bit it would take more time 
+    assert acc > .98 # higher could work with a better learning rate, bit it would take more time 
+
+def test_TLModuleOneBatchNoWarmStart():
+    torch.manual_seed(0)
+
+    class model(TLModule):
+        def __init__(self):
+            super(model, self).__init__()
+            self.layer1 = nn.Linear(10,20)
+            self.layer2 = nn.Linear(20,2)
+            self.set_graph({
+                'layer1':'relu',
+                'layer2':'id'
+            })
+        def forward(self, x):
+            x = F.relu(self.layer1(x))
+            x = self.layer2(x)
+            return x 
+    
+    input_dim = 10
+    batch_size = 5000
+
+    mymodel = model()
+    mymodel.set_opt(optim.Adam, lr=0.03)
+    mymodel.set_X_opt(optim.Adam, lr=0.01)
+    
+    dataset = LinearlySeparable(input_dim, seed=1)
+    X,y = dataset.batch(batch_size)
+
+    mymodel.train(X,y,0.01,300,warmstart=False)
+    acc = accuracy_score(y, mymodel(X).max(1, keepdim=True)[1])
+    assert acc > 0.98
+
+def test_TLModuleOneBatchWarmStart():
+
+    torch.manual_seed(0)
+
+    class model(TLModule):
+        def __init__(self):
+            super(model, self).__init__()
+            self.layer1 = nn.Linear(10,20)
+            self.layer2 = nn.Linear(20,2)
+            self.set_graph({
+                'layer1':'relu',
+                'layer2':'id'
+            })
+        def forward(self, x):
+            x = F.relu(self.layer1(x))
+            x = self.layer2(x)
+            return x 
+    
+    input_dim = 10
+    batch_size = 5000
+
+    mymodel = model()
+    mymodel.set_opt(optim.Adam, lr=0.02)
+
+    dataset = LinearlySeparable(input_dim, seed=1)
+    X,y = dataset.batch(batch_size)
+
+    mymodel.train(X,y,0.001,200,warmstart=True)
+    acc = accuracy_score(y, mymodel(X).max(1, keepdim=True)[1])
+    assert acc > 0.99
+
